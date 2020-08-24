@@ -46,9 +46,7 @@ end
 T2 = array2table(m1);
 T2.Properties.VariableNames(1:4) = {'Name','Latitude','Longitude','Altitude'};
 writetable(T2,'Images.txt','WriteVariableNames',0);              % create text file and remove headers   
-                                                                 % IMPROVEMENT: SKIP CREATION OF FILE "Images.txt" AND JUST USE IT DIRECTLY? ...AWAITING TENNANT APPROVAL...
 name3='Images.txt';
-
 
 %% READ in position file
 name1='Rinex.txt';
@@ -135,10 +133,29 @@ for j=1:size(TimeStamp,1)
     % If the Timestamp entry occurs between two Rinex entries, these points are linearly interpolated between and the estimated displacement is applied to the Rinex coordinates along with the camera correction.
     if cl==0
         TimeStamp(j,7:9)=Rinex(idx,2:4)+[TimeStamp(j,4:5),-TimeStamp(j,6)]/1000;
+    elseif
+        TimeStamp(j,7:9)=Rinex(idx,2:4)+(Rinex(idx+cl,2:4)-Rinex(idx,2:4))/(Rinex(idx+cl,5)-Rinex(idx,5))*(Hour-Rinex(idx,5))+[TimeStamp(j,4:5),-TimeStamp(j,6)]/1000;
     else
-        TimeStamp(j,7:9)=Rinex(idx,2:4)+(Rinex(idx+cl,2:4)-Rinex(idx,2:4))/(Rinex(idx+cl,5)-Rinex(idx,5))*(Hour-Rinex(idx,5))+[TimeStamp(j,4:5),-TimeStamp(j,6)]/1000;          
+        DataSet = Rinex(idx-points:idx+points,1:5);
+        northFit = polyfit(DataSet(:,5),DataSet(:,2),10);
+        eastFit = polyfit(DataSet(:,5),DataSet(:,3),10);
+        elevFit = p olyfit(DataSet(:,5),DataSet(:,4),10);
+        
+        TimeStamp(j,7) = polyval(northFit,Hour) + TimeStamp(j,4)/1000;                          
+        TimeStamp(j,8) = polyval(eastFit,Hour) + TimeStamp(j,5)/1000;
+        TimeStamp(j,9) = polyval(elevFit,Hour) - TimeStamp(j,6)/1000;          
     end
 end
+
+%Graphs for images
+hold on;
+plot3(TimeStamp(:,8),TimeStamp(:,7),TimeStamp(:,9));
+title('Drone Flight Path');
+xlabel('Easting'); 
+ylabel('Northing');
+fig=gcf;
+savefig(fig);
+
 pix4d_data=C0;
 for j=1:size(C0,1)
     Rows=C0{j,1};
